@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "labgrid-fritz"
+version = "0.1.0"
+description = "Labgrid power control for FRITZ! sockets, executed on a remote lab host"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["labgrid>=26.0,<27"]
+
+[project.optional-dependencies]
+host = ["fritzconnection>=1.15.1,<2"]
+test = ["pytest>=8", "build>=1", "setuptools>=77"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
