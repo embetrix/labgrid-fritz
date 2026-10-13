@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
+
+# Merge into your exporter's resource configuration. All names are examples.
+# host: SSH execution host, NOT the FRITZ!Box address.
+# device: key in that host's fritz.json devices mapping.
+dut:
+  FritzPowerPort:
+    host: lab-host
+    device: outlet
+    config_file: /etc/labgrid/fritz.json

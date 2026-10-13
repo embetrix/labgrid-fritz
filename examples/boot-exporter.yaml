@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
+
+# Optional example: replace all placeholders with your hardware's identifiers.
+dut:
+  FritzPowerPort:
+    host: lab-host
+    device: outlet
+    config_file: /etc/labgrid/fritz.json
+  USBSerialPort:
+    match:
+      ID_SERIAL_SHORT: 'YOUR_UART_SERIAL'
+      ID_USB_INTERFACE_NUM: 'YOUR_UART_INTERFACE'
+    speed: 115200
+  USBSDMuxDevice:
+    match:
+      ID_SERIAL_SHORT: 'YOUR_SDMUX_SERIAL'
