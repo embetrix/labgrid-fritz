@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+# Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
+
+[Unit]
+Description=FRITZ power proxy for generic labgrid power resources
+After=network.target
+ConditionPathExists=/etc/labgrid/fritz.json
+
+[Service]
+DynamicUser=yes
+LoadCredential=fritz-password:/etc/labgrid/fritz-password
+# In fritz.json, use "password_credential": "fritz-password".
+ExecStart=/usr/bin/labgrid-fritz-proxy --config /etc/labgrid/fritz.json --outlet 1=outlet
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

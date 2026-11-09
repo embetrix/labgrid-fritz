@@ -2,5 +2,5 @@
 # Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
 
 include LICENSE
-recursive-include examples *.yaml *.example *.py
+recursive-include examples *.yaml *.example *.py *.service
 recursive-include tests *.py
