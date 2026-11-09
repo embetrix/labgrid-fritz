@@ -1,16 +1,12 @@
 # SPDX-License-Identifier: MIT
 # Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
 
-# Client configuration: change the place name to match your lab.
-imports:
-  - labgrid_fritz
+# Optional configuration for scripts. The standard power CLI needs no YAML.
 targets:
   main:
     resources:
       RemotePlace:
         name: dut
     drivers:
-      FritzPowerDriver:
+      NetworkPowerDriver:
         delay: 3.0
-        request_timeout: 10.0
-        verify_timeout: 10.0

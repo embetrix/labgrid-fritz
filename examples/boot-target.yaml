@@ -3,8 +3,6 @@
 
 # Optional boot example for any board with a serial console and USB SD mux.
 # UART and mux are separate labgrid resources, not requirements of this library.
-imports:
-  - labgrid_fritz
 targets:
   main:
     resources:
@@ -13,5 +11,5 @@ targets:
     drivers:
       SerialDriver: {}
       USBSDMuxDriver: {}
-      FritzPowerDriver:
+      NetworkPowerDriver:
         delay: 3.0

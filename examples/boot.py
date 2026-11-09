@@ -20,7 +20,7 @@ from pexpect import TIMEOUT
 def boot(target, off_delay=3.0, output=None):
     output = sys.stdout.buffer if output is None else output
     # Bind all required hardware before taking any power-changing action.
-    power = target.get_driver("FritzPowerDriver", activate=False)
+    power = target.get_driver("PowerProtocol", activate=False)
     mux = target.get_driver("USBSDMuxDriver", activate=False)
     serial = target.get_driver("SerialDriver", activate=False)
     target.activate(power)

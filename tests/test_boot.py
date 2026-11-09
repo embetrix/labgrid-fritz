@@ -18,7 +18,7 @@ spec.loader.exec_module(boot_example)
 
 def make_target(events):
     power, mux, serial = Mock(), Mock(), Mock()
-    devices = {"FritzPowerDriver": power, "USBSDMuxDriver": mux, "SerialDriver": serial}
+    devices = {"PowerProtocol": power, "USBSDMuxDriver": mux, "SerialDriver": serial}
     target = Mock()
     target.get_driver.side_effect = lambda name, activate: devices[name]
     target.activate.side_effect = lambda driver: events.append(
