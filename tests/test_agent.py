@@ -81,6 +81,47 @@ def test_bad_config_does_not_leak_contents(config):
     assert "sensitive-value" not in str(exc.value)
 
 
+def test_systemd_credential_password(config, monkeypatch):
+    settings = json.loads(config.read_text())
+    device = settings["devices"]["board"]
+    del device["password_file"]
+    device["password_credential"] = "fritz-password"
+    config.write_text(json.dumps(settings))
+    credentials = config.parent / "credentials"
+    credentials.mkdir()
+    (credentials / "fritz-password").write_text("credential-secret\n")
+    monkeypatch.setenv("CREDENTIALS_DIRECTORY", str(credentials))
+    calls = []
+    def constructor(**kwargs):
+        calls.append(kwargs)
+        return FakeHome()
+    install_library(monkeypatch, constructor)
+    fritz.configure(str(config), "board")
+    assert calls[0]["password"] == "credential-secret"
+
+
+@pytest.mark.parametrize("credential,keep_file,environment", [
+    ("../password", False, "/run/credentials/test"),
+    ("/etc/password", False, "/run/credentials/test"),
+    ("fritz-password", True, "/run/credentials/test"),
+    ("fritz-password", False, None),
+    ("fritz-password", False, "relative"),
+])
+def test_invalid_credential_configuration(config, monkeypatch, credential, keep_file, environment):
+    settings = json.loads(config.read_text())
+    device = settings["devices"]["board"]
+    if not keep_file:
+        del device["password_file"]
+    device["password_credential"] = credential
+    config.write_text(json.dumps(settings))
+    if environment is None:
+        monkeypatch.delenv("CREDENTIALS_DIRECTORY", raising=False)
+    else:
+        monkeypatch.setenv("CREDENTIALS_DIRECTORY", environment)
+    with pytest.raises(RuntimeError, match="Invalid FRITZ"):
+        fritz.configure(str(config), "board")
+
+
 def test_device_selection_uses_configured_router_and_socket(config, monkeypatch):
     settings = json.loads(config.read_text())
     settings["devices"]["second-outlet"] = {

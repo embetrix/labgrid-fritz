@@ -9,7 +9,9 @@ Library exception messages are deliberately not sent back: they may contain secr
 
 import json
 import math
+import os
 from pathlib import Path
+import re
 import time
 
 
@@ -36,12 +38,23 @@ def configure(config_file, device, request_timeout=10.0):
         with path.open(encoding="utf-8") as stream:
             config = json.load(stream)
         settings = config["devices"][device]
-        for field in ("address", "username", "ain", "password_file"):
+        for field in ("address", "username", "ain"):
             if not isinstance(settings[field], str) or not settings[field].strip():
                 raise ValueError()
         if any(key in settings for key in ("password", "password_env")):
             raise ValueError()
-        password_path = Path(settings["password_file"])
+        if ("password_file" in settings) == ("password_credential" in settings):
+            raise ValueError()
+        if "password_credential" in settings:
+            credential = settings["password_credential"]
+            if not isinstance(credential, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", credential):
+                raise ValueError()
+            directory = Path(os.environ["CREDENTIALS_DIRECTORY"])
+            if not directory.is_absolute():
+                raise ValueError()
+            password_path = directory / credential
+        else:
+            password_path = Path(settings["password_file"])
         if not password_path.is_absolute():
             raise ValueError()
         port = settings.get("port", 49000)
@@ -50,7 +63,7 @@ def configure(config_file, device, request_timeout=10.0):
     except (OSError, ValueError, KeyError, TypeError):
         raise RuntimeError(
             "Invalid FRITZ! configuration: check the file, device name, address, "
-            "username, AIN, port and absolute password_file path on the SSH host"
+            "username, AIN, port and password_file or systemd password_credential on the host"
         ) from None
 
     try:
