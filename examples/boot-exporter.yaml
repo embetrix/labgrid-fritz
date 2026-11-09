@@ -1,7 +1,7 @@
-# SPDX-License-Identifier: MIT
-# Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
+## SPDX-License-Identifier: MIT
+## Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
 
-# Optional example: replace all placeholders with your hardware's identifiers.
+## Optional example: replace all placeholders with your hardware's identifiers.
 dut:
   FritzPowerPort:
     host: lab-host
