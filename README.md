@@ -1,161 +1,93 @@
 # labgrid-fritz
 
-Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
+Control FRITZ!DECT sockets with standard `labgrid-client` commands. The proxy
+runs on the lab host; router credentials stay there.
 
-Control FRITZ!DECT power sockets from labgrid through an SSH execution host.
-The target board, execution host, router and socket are all selected through
-configuration. Serial consoles and SD multiplexers are optional, separate resources.
+`labgrid client → SSH tunnel → labgrid-fritz-proxy → FRITZ!Box → socket`
 
-```text
-labgrid client --SSH--> lab host --TR-064--> FRITZ!Box --> power socket
-```
+Requires Python 3.11+, labgrid 26.x, a running coordinator/exporter, and SSH
+access from the client to the lab host with key authentication and a verified host
+key. Enable TR-064 application access on the FRITZ!Box and allow the lab host
+to reach its TCP port 49000.
 
-`FritzPowerDriver` implements `PowerProtocol`: `on`, `off`, `get`, `cycle`, and
-reset via power cycling. Commands run on the lab host, where router credentials
-remain. A cycle verifies OFF, waits the configured delay, switches ON and verifies
-it. Failed OFF verification aborts the cycle.
+## 1. Install on the lab host
 
-Tested with labgrid 26.0 and simulated FRITZ! responses; physical hardware
-validation is still pending.
-
-## Installation
-
-On the client, using Python 3.11+:
+Skip this step if your image already includes the proxy and service.
+Otherwise, run as root from this repository:
 
 ```sh
-python -m pip install -e /path/to/labgrid-fritz
+python3 -m venv /opt/labgrid-fritz
+/opt/labgrid-fritz/bin/pip install '.[host]'
+install -m 0644 examples/labgrid-fritz.service /etc/systemd/system/labgrid-fritz.service
+sed -i 's|/usr/bin/labgrid-fritz-proxy|/opt/labgrid-fritz/bin/labgrid-fritz-proxy|' \
+  /etc/systemd/system/labgrid-fritz.service
+systemctl daemon-reload
 ```
 
-The execution host needs Python 3.11+, `fritzconnection>=1.15.1,<2`, SSH and rsync.
-Labgrid transfers the standalone agent from the client, so installing this plugin
-on the host is optional. The `host` extra installs the FRITZ! dependency when
-installing the package there: `python -m pip install '.[host]'` from this repository.
-Use matching labgrid 26.x releases on the client, exporter and coordinator.
+## 2. Configure the router and password
 
-## Host configuration
+Create `/etc/labgrid/fritz.json` from [fritz.json.example](examples/fritz.json.example)
+and replace the placeholders. Keep the device name `outlet` and:
 
-Copy [examples/fritz.json.example](examples/fritz.json.example) to the execution
-host, for example as `/etc/labgrid/fritz.json`. Replace every `YOUR_...` placeholder
-with your settings. Each entry under `devices` describes a socket; the resource's
-`device` field selects its entry by name. Add entries to configure more sockets,
-including sockets on different routers.
+```json
+"password_credential": "fritz-password"
+```
 
-Store the router password in the file named by `password_file`. Both paths must
-be absolute and readable by the SSH user. Keep the password file private to that
-user. On a read-only system, choose a writable persistent directory for these
-files and set `config_file` accordingly. Passwords are read only on the execution
-host and are never included in exporter resources or client configuration.
+Store only the router password in `/etc/labgrid/fritz-password`, then run:
 
-The FRITZ!Box must allow TR-064 application access and the configured user must
-have permission to control the socket. The transport currently uses HTTP, with
-port 49000 as the configurable default.
+```sh
+chmod 0755 /etc/labgrid
+chown root:root /etc/labgrid/fritz.json /etc/labgrid/fritz-password
+chmod 0644 /etc/labgrid/fritz.json
+chmod 0600 /etc/labgrid/fritz-password
+systemctl enable --now labgrid-fritz.service
+```
 
-Merge [examples/exporter.yaml](examples/exporter.yaml) into your exporter config:
+The service uses `DynamicUser=yes`; systemd supplies the password using
+`LoadCredential=`. Restart `labgrid-fritz` after changing its password.
+
+## 3. Configure the exporter
+
+Merge this resource into the exporter configuration (normally
+`/etc/labgrid/configuration.yaml`):
 
 ```yaml
 dut:
-  FritzPowerPort:
-    host: lab-host
-    device: outlet
-    config_file: /etc/labgrid/fritz.json
+  NetworkPowerPort:
+    model: rest
+    host: 'http://127.0.0.1:20409/outlets/{index}'
+    index: 1
 ```
 
-`host` names the SSH execution host. `outlet` is an arbitrary key in the JSON
-configuration; `dut` is an arbitrary exporter group. Replace them to match your
-lab. Release affected places before restarting your exporter, then reacquire
-them after it has registered the updated resources.
+Run the exporter with **`--isolated`**. Its advertised hostname must resolve
+through the client's SSH configuration; set `--hostname YOUR_SSH_ALIAS` if needed.
+Index `1` maps to `outlet` through the service's `--outlet 1=outlet` option.
+Release any held place before restarting `labgrid-exporter`.
 
-## Client configuration
+For upgrades, check the live files: persistent `/etc/labgrid` may retain old
+settings. Replace `FritzPowerPort` with the block above and `password_file` with
+`password_credential`. Exporter YAML comments must start with `##`.
 
-Configure SSH access to the execution host without interactive password prompts.
-For example, replace the placeholders in this SSH config:
+## 4. Use from the labgrid client
 
-```sshconfig
-Host lab-host
-    HostName YOUR_LAB_HOST_ADDRESS
-    User YOUR_SSH_USER
-    UserKnownHostsFile ~/.ssh/known_hosts
-    StrictHostKeyChecking yes
-```
-
-Verify and record the host key before connecting with labgrid. The remote agent
-needs a writable home directory, or set `LG_AGENT_PREFIX` on the client to an
-existing writable directory on the host, including a trailing slash.
-
-[examples/target.yaml](examples/target.yaml) is the minimal power-only client
-configuration. `imports: [labgrid_fritz]` registers the resource and driver.
-Set its `RemotePlace.name` to your place name.
+Only standard labgrid is needed on the client; no FRITZ plugin or client YAML.
+Replace the coordinator address and exporter name below:
 
 ```sh
 export LG_COORDINATOR=YOUR_COORDINATOR:20408
 
-# Once, if the place does not exist; replace YOUR_EXPORTER with its actual name:
+# Once, if this place does not exist:
 labgrid-client -p dut create
 labgrid-client -p dut add-match 'YOUR_EXPORTER/dut/*'
 
-labgrid-client -c examples/target.yaml -p dut acquire
-labgrid-client -c examples/target.yaml -p dut power get
-labgrid-client -c examples/target.yaml -p dut power off
-labgrid-client -c examples/target.yaml -p dut power on
-labgrid-client -c examples/target.yaml -p dut power cycle
-labgrid-client -c examples/target.yaml -p dut release
+labgrid-client -p dut acquire
+labgrid-client -p dut power get
+labgrid-client -p dut power off
+labgrid-client -p dut power on
+labgrid-client -p dut power cycle --delay 3
+labgrid-client -p dut release
 ```
 
-The driver's `delay` controls cycle OFF time (default 3 seconds).
-`request_timeout` limits each HTTP request; `verify_timeout` limits state polling
-apart from an in-flight request. Discovery can involve several HTTP requests.
-Connections are reused within an activated driver, not between CLI processes.
-
-## Optional: power, SD mux and serial boot sequence
-
-[examples/boot-exporter.yaml](examples/boot-exporter.yaml) adds a UART and USB SD
-mux to the power resource. Replace its hardware identifier placeholders and set
-the serial speed for your target. Use the corresponding
-[examples/boot-target.yaml](examples/boot-target.yaml) on the client.
-
-```sh
-labgrid-client -c examples/boot-target.yaml -p dut acquire
-python examples/boot.py --config examples/boot-target.yaml --off-delay 3
-# Ctrl-C stops the reader; release the reservation when finished:
-labgrid-client -c examples/boot-target.yaml -p dut release
-```
-
-The script verifies power OFF, waits, sets and checks mux DUT mode, opens serial,
-then powers ON and streams output. Opening serial before power-on captures early
-boot messages. It works independently of the target board model or bootloader.
-This example is a reader; use `labgrid-client ... console` for interactive input.
-An error stops the sequence. Ctrl-C closes the reader, preserving the current
-power state and reservation. No images or boot settings are changed.
-
-## Exporter behavior
-
-Labgrid 26.0's stock exporter publishes resource classes without a specialized
-export handler as static entries. It can therefore publish `FritzPowerPort`
-without installing this package into the exporter service. The client loads the
-resource definition through `imports` before expanding `RemotePlace`.
-
-Static `avail: True` means configured; it does not indicate router or socket
-health. Driver activation queries the socket, and `power get` reads its state.
-Unreachable routers, absent sockets, unknown states and failed verification raise
-errors. Device exception messages are sanitized to avoid exposing credentials;
-the exception type is retained for diagnosis.
-
-Place acquisition coordinates access to the resource. Direct SSH access can
-bypass that coordination. Export each physical socket once and avoid concurrent
-control of the same socket through unrelated places or tools.
-
-## Development
-
-```sh
-python -m pip install -e '.[host,test]'
-python -m pytest
-python -m build
-```
-
-Tests use simulated devices and real labgrid registration, exporter and agent
-interfaces. They never contact a router or switch physical hardware.
-
-References: [labgrid imports](https://labgrid.readthedocs.io/en/v26.0/configuration.html#environment-configuration),
-[SSH agent](https://github.com/labgrid-project/labgrid/blob/v26.0/labgrid/util/agentwrapper.py),
-[static exporter entries](https://github.com/labgrid-project/labgrid/blob/v26.0/labgrid/remote/exporter.py),
-[FritzHomeAutomation](https://fritzconnection.readthedocs.io/en/1.15.1/sources/library_modules.html#fritzhomeautomation).
+For failures, run `journalctl -u labgrid-fritz -n 50 --no-pager` on the lab host.
+Optional serial/SD mux boot setup: [exporter](examples/boot-exporter.yaml),
+[client environment](examples/boot-target.yaml), [script](examples/boot.py).
