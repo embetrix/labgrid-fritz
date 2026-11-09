@@ -1,11 +1,11 @@
 ## SPDX-License-Identifier: MIT
 ## Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
 
-## Merge into your exporter's resource configuration. All names are examples.
-## host: SSH execution host, NOT the FRITZ!Box address.
-## device: key in that host's fritz.json devices mapping.
+## Run labgrid-fritz-proxy on the exporter host with --outlet 1=outlet.
+## Run the exporter with --isolated so labgrid tunnels this URL through SSH.
+## The client uses stock labgrid; no plugin or client YAML is required.
 dut:
-  FritzPowerPort:
-    host: lab-host
-    device: outlet
-    config_file: /etc/labgrid/fritz.json
+  NetworkPowerPort:
+    model: rest
+    host: 'http://127.0.0.1:20409/outlets/{index}'
+    index: 1

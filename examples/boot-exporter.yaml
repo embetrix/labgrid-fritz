@@ -2,11 +2,12 @@
 ## Copyright 2026 Embetrix Embedded Systems Solutions <ayoub.zaki@embetrix.com>
 
 ## Optional example: replace all placeholders with your hardware's identifiers.
+## Run the exporter with --isolated; start the power proxy with --outlet 1=outlet.
 dut:
-  FritzPowerPort:
-    host: lab-host
-    device: outlet
-    config_file: /etc/labgrid/fritz.json
+  NetworkPowerPort:
+    model: rest
+    host: 'http://127.0.0.1:20409/outlets/{index}'
+    index: 1
   USBSerialPort:
     match:
       ID_SERIAL_SHORT: 'YOUR_UART_SERIAL'

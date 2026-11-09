@@ -15,7 +15,7 @@ license = "MIT"
 dependencies = ["labgrid>=26.0,<27"]
 
 [project.scripts]
-labgrid-fritz-client = "labgrid_fritz.client:main"
+labgrid-fritz-proxy = "labgrid_fritz.proxy:main"
 
 [project.optional-dependencies]
 host = ["fritzconnection>=1.15.1,<2"]
